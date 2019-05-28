@@ -231,7 +231,7 @@ class Migrate:
             topic = str(top_chan.topic)
             topic += '\n' + str(user_id)
 
-            if str(user_id) not in top_chan.topic:
+            if str(user_id) not in top_chan.topic: # TODO: THIS IS NOT HOW WE BLOCK USERS ANYMORE
                 await top_chan.edit(topic=topic)
                 output += f'Blocked {user_id}\n'
             else:
