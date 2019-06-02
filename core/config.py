@@ -1,237 +1,471 @@
 import asyncio
+import copy
+import emoji
+import inspect
 import json
+import logging
 import os
 import typing
+from distutils.util import strtobool
+from types import SimpleNamespace
 
 import isodate
 
-from discord.ext.commands import BadArgument
+import discord
+from discord.ext import commands
 
 from core._color_data import ALL_COLORS
 from core.models import InvalidConfigError
 from core.time import UserFriendlyTime
+from core.utils import error, info
 
 
-class ConfigManager:
+logger = logging.getLogger("Modmail")
 
-    allowed_to_change_in_command = {
-        # activity
-        "twitch_url",
-        # bot settings
-        "main_category_id",
-        "disable_autoupdates",
-        "prefix",
-        "mention",
-        "main_color",
-        "user_typing",
-        "mod_typing",
-        "account_age",
-        "guild_age",
-        "reply_without_command",
-        # logging
-        "log_channel_id",
-        # threads
-        "sent_emoji",
-        "blocked_emoji",
-        "close_emoji",
-        "disable_recipient_thread_close",
-        "thread_creation_response",
-        "thread_creation_footer",
-        "thread_creation_title",
-        "thread_close_footer",
-        "thread_close_title",
-        "thread_close_response",
-        "thread_self_close_response",
-        # moderation
-        "recipient_color",
-        "mod_tag",
-        "mod_color",
-        # anonymous message
-        "anon_username",
-        "anon_avatar_url",
-        "anon_tag",
-    }
 
-    internal_keys = {
-        # bot presence
-        "activity_message",
-        "activity_type",
-        "status",
-        "oauth_whitelist",
-        # moderation
-        "blocked",
-        "command_permissions",
-        "level_permissions",
-        # threads
-        "snippets",
-        "notification_squad",
-        "subscriptions",
-        "closures",
-        # misc
-        "aliases",
-        "plugins",
-    }
+class ConfigConverter:
+    def __init__(self, default: typing.Any = None):
+        self.default = default
 
-    protected_keys = {
-        # Modmail
-        "modmail_guild_id",
-        "guild_id",
-        "log_url",
-        "mongo_uri",
-        "owners",
-        # bot
-        "token",
-        # GitHub
-        "github_access_token",
-        # Logging
-        "log_level",
-    }
+    async def convert(self, manager: 'ConfigManager', key: str, argument: typing.Any) -> typing.Optional[typing.Any]:
+        """
+        Convert a configuration value to their respective types.
+        """
+        raise NotImplementedError('Derived classes need to implement this.')
 
-    colors = {"mod_color", "recipient_color", "main_color"}
+    async def sanitize(self, manager: 'ConfigManager', key: str, argument: typing.Any) -> typing.Optional[typing.Any]:
+        """
+        Convert a string configuration value into standardized configuration values.
+        """
+        raise NotImplementedError('Derived classes need to implement this.')
 
-    time_deltas = {"account_age", "guild_age"}
 
-    valid_keys = allowed_to_change_in_command | internal_keys | protected_keys
+class BooleanConverter(ConfigConverter):
+    def __init__(self, default: bool = False):
+        super().__init__(default)
 
-    def __init__(self, bot):
-        self.bot = bot
-        self._cache = {}
-        self._ready_event = asyncio.Event()
-        self.populate_cache()
+    async def convert(self, manager, key, argument) -> typing.Optional[bool]:
+        if argument is None:
+            return self.default
 
-    def __repr__(self):
-        return repr(self.cache)
+        if argument in {0, 1}:
+            return bool(argument)
+        try:
+            return strtobool(argument)
+        except ValueError:
+            logger.error(error('"%s" is not a valid yes/no choice for configuration "%s", '
+                               'it has been removed.'), argument, key)
+            manager.remove(key)
+        return self.default
 
-    @property
-    def api(self):
-        return self.bot.api
+    async def sanitize(self, manager, key, argument) -> typing.Optional[int]:
+        if argument is None:
+            return None
 
-    @property
-    def ready_event(self) -> asyncio.Event:
-        return self._ready_event
+        try:
+            # Converts to 0/1
+            return int(strtobool(argument))
+        except ValueError:
+            raise InvalidConfigError(f'"{argument}" is not a valid yes/no value.')
 
-    @property
-    def cache(self) -> dict:
-        return self._cache
 
-    @cache.setter
-    def cache(self, val: dict):
-        self._cache = val
+class StrConverter(ConfigConverter):
+    async def convert(self, manager, key, argument) -> typing.Optional[str]:
+        if argument is None:
+            return self.default
 
-    def populate_cache(self) -> dict:
-        data = {
-            "snippets": {},
-            "plugins": [],
-            "aliases": {},
-            "blocked": {},
-            "oauth_whitelist": [],
-            "command_permissions": {},
-            "level_permissions": {},
-            "notification_squad": {},
-            "subscriptions": {},
-            "closures": {},
-            "log_level": "INFO",
-        }
+        return str(argument)
 
-        data.update(os.environ)
+    async def sanitize(self, manager, key, argument) -> typing.Optional[str]:
+        if argument is None:
+            return None
 
-        if os.path.exists("config.json"):
-            with open("config.json") as f:
-                # Config json should override env vars
-                data.update(json.load(f))
+        return str(argument)
 
-        self.cache = {
-            k.lower(): v for k, v in data.items() if k.lower() in self.valid_keys
-        }
-        return self.cache
 
-    async def clean_data(self, key: str, val: typing.Any) -> typing.Tuple[str, str]:
-        value_text = val
-        clean_value = val
+class IntConverter(ConfigConverter):
+    async def convert(self, manager, key, argument) -> typing.Optional[int]:
+        if argument is None:
+            return self.default
 
-        # when setting a color
-        if key in self.colors:
-            hex_ = ALL_COLORS.get(val)
+        try:
+            return int(argument)
+        except ValueError:
+            logger.error(error('"%s" is not a valid integer for configuration "%s", '
+                               'it has been removed.'), argument, key)
+            manager.remove(key)
+        return self.default
 
-            if hex_ is None:
-                if not isinstance(val, str):
-                    raise InvalidConfigError("Invalid color name or hex.")
-                if val.startswith("#"):
-                    val = val[1:]
-                if len(val) != 6:
-                    raise InvalidConfigError("Invalid color name or hex.")
-                for letter in val:
-                    if letter not in {
-                        "0",
-                        "1",
-                        "2",
-                        "3",
-                        "4",
-                        "5",
-                        "6",
-                        "7",
-                        "8",
-                        "9",
-                        "a",
-                        "b",
-                        "c",
-                        "d",
-                        "e",
-                        "f",
-                    }:
-                        raise InvalidConfigError("Invalid color name or hex.")
-                clean_value = "#" + val
-                value_text = clean_value
-            else:
-                clean_value = hex_
-                value_text = f"{val} ({clean_value})"
+    async def sanitize(self, manager, key, argument) -> typing.Optional[int]:
+        if argument is None:
+            return None
 
-        elif key in self.time_deltas:
+        try:
+            return int(argument)
+        except ValueError:
+            raise InvalidConfigError('Invalid integer value.')
+
+
+class ColorConverter(ConfigConverter):
+    async def convert(self, manager, key, argument) -> typing.Optional[int]:
+        if argument is None:
+            return self.default
+
+        try:
+            return int(argument.lstrip("#"), base=16)
+        except ValueError:
+            logger.error(error('"%s" is not a valid hex color for configuration "%s", '
+                               'it has been removed.'), argument, key)
+            manager.remove(key)
+        return self.default
+
+    async def sanitize(self, manager, key, argument) -> typing.Optional[str]:
+        if argument is None:
+            return None
+
+        hex_ = ALL_COLORS.get(argument)
+
+        if hex_ is not None:
+            return hex_
+
+        hex_ = str(argument)
+        if hex_.startswith("#"):
+            hex_ = hex_[1:]
+        if len(hex_) == 3:
+            hex_ = ''.join(s for s in hex_ for _ in range(2))
+        if len(hex_) != 6:
+            raise InvalidConfigError("Invalid color name or hex.")
+        try:
+            int(hex_)
+        except ValueError:
+            raise InvalidConfigError("Invalid color name or hex.")
+        return "#" + hex_
+
+
+class TimeDeltaConverter(ConfigConverter):
+    def __init__(self, default: isodate.duration.Duration = None):
+        super().__init__(default if default is not None else isodate.duration.Duration())
+
+    async def convert(self, manager, key, argument) -> typing.Optional[isodate.duration.Duration]:
+        if argument is None:
+            return self.default
+        try:
+            return isodate.parse_duration(argument)
+        except isodate.ISO8601Error:
+            logger.error(error('"%s" is not a valid ISO8601 duration format string for configuration "%s", '
+                               'it has been removed.'), argument, key)
+            manager.remove(key)
+        return self.default
+
+    async def sanitize(self, manager, key, argument) -> typing.Optional[str]:
+        if argument is None:
+            return None
+        try:
+            return isodate.parse_duration(argument)
+        except isodate.ISO8601Error:
             try:
-                isodate.parse_duration(val)
-            except isodate.ISO8601Error:
-                try:
-                    converter = UserFriendlyTime()
-                    time = await converter.convert(None, val)
-                    if time.arg:
-                        raise ValueError
-                except BadArgument as exc:
-                    raise InvalidConfigError(*exc.args)
-                except Exception:
+                converter = UserFriendlyTime()
+                time = await converter.convert(None, argument)
+                if time.arg:
                     raise InvalidConfigError(
                         "Unrecognized time, please use ISO-8601 duration format "
                         'string or a simpler "human readable" time.'
                     )
-                clean_value = isodate.duration_isoformat(time.dt - converter.now)
-                value_text = f"{val} ({clean_value})"
+            except commands.BadArgument as exc:
+                raise InvalidConfigError(*exc.args)
+            except Exception:
+                raise InvalidConfigError(
+                    "Unrecognized time, please use ISO-8601 duration format "
+                    'string or a simpler "human readable" time.'
+                )
+            return isodate.duration_isoformat(time.dt - converter.now)
 
-        return clean_value, value_text
 
-    async def update(self, data: typing.Optional[dict] = None) -> dict:
-        """Updates the config with data from the cache"""
-        if data is not None:
-            self.cache.update(data)
-        await self.api.update_config(self.cache)
-        return self.cache
+class EmojiConverter(ConfigConverter):
+    async def convert(self, manager, key, argument) -> typing.Optional[typing.Union[str, discord.Emoji]]:
+        if argument is None:
+            return self.default
 
-    async def refresh(self) -> dict:
-        """Refreshes internal cache with data from database"""
-        data = await self.api.get_config()
-        self.cache.update(data)
-        self.ready_event.set()
-        return self.cache
+        if argument in emoji.UNICODE_EMOJI:
+            return argument
+        try:
+            converter = commands.EmojiConverter()
+            ctx = SimpleNamespace(bot=manager.bot, guild=manager.bot.guild)
+            return await converter.convert(ctx, argument.strip(":"))
+        except commands.BadArgument:
+            logger.error(error('"%s" is not a valid emoji  for configuration "%s", it has been removed.'),
+                         argument, key)
+            manager.remove(key)
+        return self.default
+
+    async def sanitize(self, manager, key, argument) -> typing.Optional[str]:
+        if argument is None:
+            return None
+
+        if argument in emoji.UNICODE_EMOJI:
+            return argument
+
+        try:
+            converter = commands.EmojiConverter()
+            ctx = SimpleNamespace(bot=manager.bot, guild=manager.bot.guild)
+            return await converter.convert(ctx, argument.strip(":"))
+        except commands.BadArgument as exc:
+            raise InvalidConfigError(*exc.args)
+
+
+def _check_(arg):
+    if inspect.isclass(arg):
+        return issubclass(arg, ConfigConverter)
+    return isinstance(arg, ConfigConverter)
+
+
+class ArrayWithDefaults(ConfigConverter):
+    def __init__(self, default: list = None):
+        super().__init__(default if default is not None else [])
+        self.type_ = None
+
+    def __getitem__(self, type_: typing.Type[ConfigConverter]):
+        self = copy.deepcopy(self)
+        self.type_ = type_
+
+        if inspect.isclass(self.type_):
+            self.type_ = self.type_()
+
+        if not isinstance(self.type_, ConfigConverter) and self.type_ is not None:
+            raise ValueError("Must derive from ConfigConverter.")
+        return self
+
+    async def convert(self, manager, key, argument) -> typing.Optional[list]:
+        if argument is None:
+            return self.default
+
+        try:
+            return [self.type_.convert(manager, key, item)
+                    if self.type_ is not None else item for item in list(argument)]
+        except TypeError:
+            logger.error(error(
+                '"%s" is not a valid array for configuration "%s", it has been removed.'),
+                         argument, key)
+            manager.remove(key)
+        return self.default
+
+    async def sanitize(self, manager, key, argument) -> typing.Optional[list]:
+        if argument is None:
+            return None
+
+        try:
+            return [self.type_.sanitize(manager, key, item)
+                    if self.type_ is not None else item for item in list(argument)]
+        except TypeError:
+            raise InvalidConfigError(f'"{key}" must be an array.')
+
+
+Array = ArrayWithDefaults()
+
+
+class MappingWithDefaults(ConfigConverter):
+    def __init__(self, default: dict = None):
+        super().__init__(default if default is not None else {})
+        self.key_type = None
+        self.arg_type = None
+
+    def __getitem__(self, type_: typing.Union[typing.Tuple[typing.Type[ConfigConverter],
+                                                           typing.Type[ConfigConverter]],
+                                              typing.Type[ConfigConverter]]):
+        self = copy.deepcopy(self)
+        if isinstance(type_, tuple):
+            self.key_type, self.arg_type = type_
+        else:
+            self.key_type = StrConverter
+            self.arg_type = type_
+
+        if inspect.isclass(self.key_type):
+            self.key_type = self.key_type()
+        if inspect.isclass(self.arg_type):
+            self.arg_type = self.arg_type()
+
+        if not isinstance(self.key_type, ConfigConverter) or (not isinstance(self.arg_type, ConfigConverter) and
+                                                              self.arg_type is not None):
+            raise ValueError("Must derive from ConfigConverter.")
+        return self
+
+    async def convert(self, manager, key, argument) -> typing.Optional[dict]:
+        if argument is None:
+            return self.default
+
+        try:
+            return {self.key_type.convert(manager, key, name): self.arg_type.convert(manager, key, item)
+                    if self.arg_type is not None else item for name, item in dict(argument)}
+        except TypeError:
+            logger.error(error(
+                '"%s" is not a valid mapping for configuration "%s", it has been removed.'),
+                         argument, key)
+            manager.remove(key)
+        return self.default
+
+    async def sanitize(self, manager, key, argument) -> typing.Optional[dict]:
+        if argument is None:
+            return None
+
+        try:
+            return {self.key_type.sanitize(manager, key, name): self.arg_type.sanitize(manager, key, item)
+                    if self.arg_type is not None else item for name, item in dict(argument)}
+        except TypeError:
+            raise InvalidConfigError(f'"{key}" must be a mapping.')
+
+
+Mapping = MappingWithDefaults()
+
+
+class ConfigManager:
+    public_keys = {
+        # activity
+        "twitch_url": StrConverter("https://www.twitch.tv/discord-modmail/"),
+        # bot settings
+        "main_category_id": IntConverter,
+        "disable_autoupdates": BooleanConverter(False),
+        "prefix": StrConverter('?'),
+        "mention": StrConverter('@here'),
+        "main_color": ColorConverter(discord.Color.blurple()),
+        "user_typing": BooleanConverter(False),
+        "mod_typing": BooleanConverter(False),
+        "account_age": TimeDeltaConverter,
+        "guild_age": TimeDeltaConverter,
+        "reply_without_command": BooleanConverter(False),
+        # logging
+        "log_channel_id": IntConverter,
+        # threads
+        "sent_emoji": EmojiConverter('✅'),
+        "blocked_emoji": EmojiConverter('🚫'),
+        "close_emoji": EmojiConverter('🔒'),
+        "disable_recipient_thread_close": BooleanConverter(False),
+        "thread_creation_response": StrConverter('The staff team will get back to you as soon as possible.'),
+        "thread_creation_footer": StrConverter,
+        "thread_creation_title": StrConverter("Thread Created"),
+        "thread_close_footer": StrConverter("Replying will create a new thread"),
+        "thread_close_title": StrConverter("Thread Closed"),
+        "thread_close_response": StrConverter("{closer.mention} has closed this Modmail thread."),
+        "thread_self_close_response": StrConverter("You have closed this Modmail thread."),
+        # moderation
+        "recipient_color": ColorConverter(discord.Color.gold()),
+        "mod_tag": StrConverter,
+        "mod_color": ColorConverter(discord.Color.green()),
+        # anonymous message
+        "anon_username": StrConverter,
+        "anon_avatar_url": StrConverter,
+        "anon_tag": StrConverter("Response"),
+    }
+
+    private_keys = {
+        # bot presence
+        "activity_message": StrConverter,
+        "activity_type": StrConverter,
+        "status": StrConverter,
+        "oauth_whitelist": Array[IntConverter],
+        # moderation
+        "blocked": Mapping[IntConverter, StrConverter],
+        "command_permissions": Mapping[Array[IntConverter]],
+        "level_permissions": Mapping[Array[IntConverter]],
+        # threads
+        "snippets": Mapping[StrConverter],
+        "notification_squad": Mapping[IntConverter, Array[StrConverter]],
+        "subscriptions": Mapping[IntConverter, Array[StrConverter]],
+        "closures": Mapping[IntConverter, Mapping[StrConverter]],
+        # misc
+        "aliases": Mapping[StrConverter],
+        "plugins": Array[StrConverter],
+    }
+
+    protected_keys = {
+        # Modmail
+        "modmail_guild_id": IntConverter,
+        "guild_id": IntConverter,
+        "log_url": StrConverter,
+        "mongo_uri": StrConverter,
+        "owners": StrConverter,
+        # bot
+        "token": StrConverter,
+        # GitHub
+        "github_access_token": StrConverter,
+        # Logging
+        "log_level": StrConverter('INFO'),
+    }
+
+    all_keys = {**public_keys, **private_keys, **protected_keys}
+
+    def __init__(self, bot):
+        self.bot = bot
+        self._raw_cache = {}
+        self._ready_event = asyncio.Event()
+
+    async def load_cache(self) -> None:
+        logger.debug(info('Recreating local config cache.'))
+        self._raw_cache = {}
+        await self.refresh()
+        if os.path.exists("config.json"):
+            with open("config.json") as f:
+                # Config json should override env vars
+                for k, v in json.load(f).items():
+                    await self.set(k, v, allow_all=True)
+        self._ready_event.set()
 
     async def wait_until_ready(self) -> None:
-        await self.ready_event.wait()
+        logger.debug(info('Waiting for "_ready_event" to be set.'))
+        await self._ready_event.wait()
+        logger.debug(info('"_ready_event" has been set.'))
 
-    def __getattr__(self, value: str) -> typing.Any:
-        return self.cache[value]
+    def __repr__(self):
+        return repr(self._raw_cache)
 
-    def __setitem__(self, key: str, item: typing.Any) -> None:
-        self.cache[key] = item
+    async def update(self) -> None:
+        """Updates the config with data from the cache"""
+        logger.debug(info('Attempting to update configs.'))
+        await self.bot.api.update_config(self._raw_cache)
 
-    def __getitem__(self, key: str) -> typing.Any:
-        return self.cache[key]
+    async def refresh(self) -> None:
+        """Refreshes internal cache with data from database"""
+        logger.debug(info('Refreshing configs from database.'))
+        data = await self.bot.api.get_config()
+        for k, v in data.items():
+            await self.set(k, v, allow_all=True)
 
-    def get(self, key: str, default: typing.Any = None) -> typing.Any:
-        return self.cache.get(key, default)
+    async def set(self, key: str, item: typing.Any, *, allow_all=False) -> None:
+        logger.debug(info('Attempting to set config "%s" to local cache.'), key)
+        if key not in self.all_keys:
+            raise InvalidConfigError(f'Configuration "{key}" is invalid.')
+        if not allow_all:
+            if key not in self.public_keys:
+                raise InvalidConfigError(f'Attempting to set unsettable configuration "{key}".')
+
+        converter = self.all_keys[key]
+        if inspect.isclass(converter):
+            converter = converter()
+
+        self._raw_cache[key] = await converter.sanitize(self, key, item)
+        logger.debug(info('Updated config "%s" in local cache.'), key)
+
+    async def get(self, key: str, *, default=None, allow_all=False) -> typing.Any:
+        logger.debug(info('Attempting to retrieve config "%s" from local cache.'), key)
+        if key not in self.all_keys:
+            raise InvalidConfigError(f'Configuration "{key}" is invalid.')
+        if not allow_all:
+            if key not in self.public_keys:
+                raise InvalidConfigError(f'Attempting to set gettable configuration "{key}".')
+
+        converter = self.all_keys[key]
+        if inspect.isclass(converter):
+            converter = converter(default)
+
+        return await converter.convert(self, key, self._raw_cache.get(key, default))
+
+    def remove(self, key: str, *, allow_all=False) -> None:
+        logger.debug(info('Attempting to remove config "%s" from local cache.'), key)
+        if key not in self.all_keys:
+            raise InvalidConfigError(f'Configuration "{key}" is invalid.')
+        if not allow_all:
+            if key not in self.public_keys:
+                raise InvalidConfigError(f'Attempting to set removable configuration "{key}".')
+
+        if key in self._raw_cache:
+            del self._raw_cache[key]
+        logger.debug(info('Successfully removed "%s" from local cache.'), key)

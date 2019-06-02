@@ -1,5 +1,6 @@
 from enum import IntEnum
 
+import discord
 from discord import Color, Embed
 from discord.ext import commands
 
@@ -19,7 +20,7 @@ class PermissionLevel(IntEnum):
 class InvalidConfigError(commands.BadArgument):
     def __init__(self, msg, *args):
         super().__init__(msg, *args)
-        self.msg = msg
+        self.msg = discord.utils.escape_mentions(discord.utils.escape_markdown(msg))
 
     @property
     def embed(self):
