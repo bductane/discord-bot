@@ -34,7 +34,7 @@ class Thread:
             self._recipient = None
         else:
             if recipient.bot:
-                raise CommandError("Recipient cannot be a bot.")
+                raise CommandError("L'utilisateur ne peut pas être un bot")
             self._id = recipient.id
             self._recipient = recipient
         self._channel = channel
@@ -109,7 +109,7 @@ class Thread:
             em = discord.Embed(color=discord.Color.red())
             em.title = "Error while trying to create a thread"
             em.description = e.message
-            em.add_field(name="Recipient", value=recipient.mention)
+            em.add_field(name="Utilisateur", value=recipient.mention)
 
             if log_channel is not None:
                 return await log_channel.send(embed=em)
@@ -280,7 +280,7 @@ class Thread:
             user = f"`{self.id}`"
 
         if self.id == closer.id:
-            _closer = "the Recipient"
+            _closer = "L'utilisateur"
         else:
             _closer = f"{closer} ({closer.id})"
 
@@ -663,7 +663,7 @@ class Thread:
             # noinspection PyUnresolvedReferences,PyDunderSlots
             embed.color = discord.Color.blurple()  # pylint: disable=E0237
         else:
-            embed.set_footer(text=f"Recipient")
+            embed.set_footer(text=f"Utilisateur")
             # noinspection PyUnresolvedReferences,PyDunderSlots
             embed.color = self.bot.recipient_color  # pylint: disable=E0237
 
@@ -865,43 +865,6 @@ class ThreadManager:
                     break
 
             role_names = separator.join(roles)
-
-        embed = discord.Embed(color=color, description=user.mention, timestamp=time)
-
-        created = str((time - user.created_at).days)
-        # if not role_names:
-        #     embed.add_field(name='Mention', value=user.mention)
-        # embed.add_field(name='Registered', value=created + days(created))
-        embed.description += f" was created {days(created)}"
-
-        footer = "User ID: " + str(user.id)
-        embed.set_footer(text=footer)
-        embed.set_author(name=str(user), icon_url=user.avatar_url, url=log_url)
-        # embed.set_thumbnail(url=avi)
-
-        if member:
-            joined = str((time - member.joined_at).days)
-            # embed.add_field(name='Joined', value=joined + days(joined))
-            embed.description += f", joined {days(joined)}"
-
-            if member.nick:
-                embed.add_field(name="Nickname", value=member.nick, inline=True)
-            if role_names:
-                embed.add_field(name="Roles", value=role_names, inline=True)
-        else:
-            embed.set_footer(text=f"{footer} • (not in main server)")
-
-        if log_count:
-            # embed.add_field(name='Past logs', value=f'{log_count}')
-            thread = "thread" if log_count == 1 else "threads"
-            embed.description += f" with **{log_count}** past {thread}."
-        else:
-            embed.description += "."
-
-        mutual_guilds = [g for g in self.bot.guilds if user in g.members]
-        if user not in self.bot.guild.members or len(mutual_guilds) > 1:
-            embed.add_field(
-                name="Mutual Servers", value=", ".join(g.name for g in mutual_guilds)
             )
 
         return embed
