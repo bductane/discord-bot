@@ -34,7 +34,7 @@ class Thread:
             self._recipient = None
         else:
             if recipient.bot:
-                raise CommandError("L'utilisateur ne peut pas être un bot")
+                raise CommandError("La personne ne peut pas Ãªtre un bot")
             self._id = recipient.id
             self._recipient = recipient
         self._channel = channel
@@ -153,7 +153,7 @@ class Thread:
         # Once thread is ready, tell the recipient.
         thread_creation_response = self.bot.config.get(
             "thread_creation_response",
-            "Un membre du staff ESNC vous contactera dès que possible.",
+            "Un membre du staff ESNC vous contactera dÃ¨s que possible.",
         )
 
         embed = discord.Embed(
@@ -168,7 +168,7 @@ class Thread:
 
         footer = self.bot.config.get("thread_creation_footer", footer)
         embed.set_footer(text=footer, icon_url=self.bot.guild.icon_url)
-        embed.title = self.bot.config.get("thread_creation_title", "Ticket créé")
+        embed.title = self.bot.config.get("thread_creation_title", "Ticket crÃ©Ã©")
 
         if creator is None:
             msg = await recipient.send(embed=embed)
@@ -286,7 +286,7 @@ class Thread:
 
         embed.title = user
 
-        event = "Thread Closed as Scheduled" if scheduled else "Ticket fermé"
+        event = "Thread Closed as Scheduled" if scheduled else "Ticket fermÃ©"
         # embed.set_author(name=f'Event: {event}', url=log_url)
         embed.set_footer(text=f"{event} by {_closer}")
         embed.timestamp = datetime.utcnow()
@@ -309,7 +309,7 @@ class Thread:
         if not message:
             if self.id == closer.id:
                 message = self.bot.config.get(
-                    "thread_self_close_response", "Vous avez fermé ce ticket."
+                    "thread_self_close_response", "Vous avez fermÃ© ce ticket."
                 )
             else:
                 message = self.bot.config.get(
@@ -321,7 +321,7 @@ class Thread:
 
         embed.description = message
         footer = self.bot.config.get(
-            "thread_close_footer", "Répondre va créer un nouveau ticket !"
+            "thread_close_footer", "RÃ©pondre va crÃ©er un nouveau ticket !"
         )
         embed.set_footer(text=footer, icon_url=self.bot.guild.icon_url)
 
@@ -889,7 +889,7 @@ class ThreadManager:
             if role_names:
                 embed.add_field(name="Roles", value=role_names, inline=True)
         else:
-            embed.set_footer(text=f"{footer} • (not in main server)")
+            embed.set_footer(text=f"{footer} Â• (not in main server)")
 
         if log_count:
             # embed.add_field(name='Past logs', value=f'{log_count}')
