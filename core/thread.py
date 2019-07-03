@@ -30,7 +30,7 @@ class Thread:
         self.manager = manager
         self.bot = manager.bot
         if isinstance(recipient, int):
-            self._id = recipient
+            self._id = recipient3
             self._recipient = None
         else:
             if recipient.bot:
