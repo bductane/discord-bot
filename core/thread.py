@@ -887,7 +887,7 @@ class ThreadManager:
             if member.nick:
                 embed.add_field(name="Pseudo", value=member.nick, inline=True)
             if role_names:
-                embed.add_field(name="Roles", value=role_names, inline=True)
+                embed.add_field(name="Rôles", value=role_names, inline=True)
         else:
             embed.set_footer(text=f"{footer} • (not in main server)")
 
