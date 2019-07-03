@@ -168,7 +168,7 @@ class Thread:
 
         footer = self.bot.config.get("thread_creation_footer", footer)
         embed.set_footer(text=footer, icon_url=self.bot.guild.icon_url)
-        embed.title = self.bot.config.get("thread_creation_title", "Thread Created")
+        embed.title = self.bot.config.get("thread_creation_title", "Ticket créé")
 
         if creator is None:
             msg = await recipient.send(embed=embed)
@@ -286,7 +286,7 @@ class Thread:
 
         embed.title = user
 
-        event = "Thread Closed as Scheduled" if scheduled else "Thread Closed"
+        event = "Thread Closed as Scheduled" if scheduled else "Ticket fermé"
         # embed.set_author(name=f'Event: {event}', url=log_url)
         embed.set_footer(text=f"{event} by {_closer}")
         embed.timestamp = datetime.utcnow()
