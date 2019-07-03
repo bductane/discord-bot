@@ -34,7 +34,7 @@ class Thread:
             self._recipient = None
         else:
             if recipient.bot:
-                raise CommandError("Recipient cannot be a bot.")
+                raise CommandError("La personne ne peut pas etre un bot")
             self._id = recipient.id
             self._recipient = recipient
         self._channel = channel
