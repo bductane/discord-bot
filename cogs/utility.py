@@ -239,18 +239,16 @@ class Utility(commands.Cog):
     async def about(self, ctx):
         """Shows information about this bot."""
         embed = Embed(color=self.bot.main_color, timestamp=datetime.utcnow())
-        embed.set_author(name="Modmail - About", icon_url=self.bot.user.avatar_url)
+        embed.set_author(name="BOT ESNC", icon_url=self.bot.user.avatar_url)
         embed.set_thumbnail(url=self.bot.user.avatar_url)
 
-        desc = "This is an open source Discord bot that serves as a means for "
-        desc += "members to easily communicate with server administrators in "
-        desc += "an organised manner."
+        desc = "Le but du bot étant de faciliter la communication entre "
+        desc += "les membres de la communauté et le staff ESNC "
         embed.description = desc
 
-        embed.add_field(name="Uptime", value=self.bot.uptime)
-        embed.add_field(name="Latency", value=f"{self.bot.latency * 1000:.2f} ms")
+        embed.add_field(name="En ligne depuis", value=self.bot.uptime)
+        embed.add_field(name="Latence", value=f"{self.bot.latency * 1000:.2f} ms")
         embed.add_field(name="Version", value=f"`{self.bot.version}`")
-        embed.add_field(name="Author", value="[`kyb3r`](https://github.com/kyb3r)")
 
         changelog = await Changelog.from_url(self.bot)
         latest = changelog.latest_version
@@ -258,13 +256,11 @@ class Utility(commands.Cog):
         if parse_version(self.bot.version) < parse_version(latest.version):
             footer = f"A newer version is available v{latest.version}"
         else:
-            footer = "You are up to date with the latest version."
+            footer = "Dernière version 1.0"
 
         embed.add_field(
-            name="GitHub", value="https://github.com/kyb3r/modmail", inline=False
+            name="GitHub", value="yanapa", inline=False
         )
-
-        embed.add_field(name="Donate", value="[Patreon](https://patreon.com/kyber)")
 
         embed.set_footer(text=footer)
         await ctx.send(embed=embed)
@@ -275,7 +271,7 @@ class Utility(commands.Cog):
     async def sponsors(self, ctx):
         """Shows a list of sponsors."""
         resp = await self.bot.session.get(
-            "https://raw.githubusercontent.com/kyb3r/modmail/master/SPONSORS.json"
+            ""
         )
         data = loads(await resp.text())
 
@@ -401,7 +397,7 @@ class Utility(commands.Cog):
             pass
         await ctx.send(
             embed=Embed(
-                color=self.bot.main_color, description="Cached logs are now cleared."
+                color=self.bot.main_color, description="Logs nettoyé"
             )
         )
 
@@ -882,14 +878,14 @@ class Utility(commands.Cog):
             embed = Embed(
                 title="Removed alias",
                 color=self.bot.main_color,
-                description=f"`{name}` no longer exists.",
+                description=f"`{name}` est inconnu.",
             )
 
         else:
             embed = Embed(
                 title="Error",
                 color=Color.red(),
-                description=f"Alias `{name}` does not exist.",
+                description=f"Alias `{name}` est inconnu.",
             )
 
         return await ctx.send(embed=embed)
@@ -904,7 +900,7 @@ class Utility(commands.Cog):
             embed = Embed(
                 title="Error",
                 color=Color.red(),
-                description=f"Alias `{name}` does not exist.",
+                description=f"Alias `{name}` est inconnu.",
             )
 
             return await ctx.send(embed=embed)
@@ -913,7 +909,7 @@ class Utility(commands.Cog):
             embed = Embed(
                 title="Error",
                 color=Color.red(),
-                description="A command or alias already exists "
+                description="Existe déjà "
                 f"with the same name: `{name}`.",
             )
             return await ctx.send(embed=embed)
@@ -923,8 +919,8 @@ class Utility(commands.Cog):
             embed = Embed(
                 title="Error",
                 color=Color.red(),
-                description="The command you are attempting to point "
-                f"to does not exist: `{linked_command}`.",
+                description="La commande nexiste pas "
+                f": `{linked_command}`.",
             )
             return await ctx.send(embed=embed)
 

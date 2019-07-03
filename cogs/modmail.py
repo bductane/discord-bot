@@ -19,7 +19,7 @@ from core.utils import format_preview, User
 
 
 class Modmail(commands.Cog):
-    """Commands directly related to Modmail functionality."""
+    """Liste des commandes."""
 
     def __init__(self, bot):
         self.bot = bot
@@ -899,14 +899,7 @@ class Modmail(commands.Cog):
         self, ctx, user: Optional[User] = None, *, after: UserFriendlyTime = None
     ):
         """
-        Block a user from using Modmail.
-
-        You may choose to set a time as to when the user will automatically be unblocked.
-
-        Leave `user` blank when this command is used within a
-        thread channel to block the current recipient.
-        `user` may be a user ID, mention, or name.
-        `after` may be a simple "human-readable" time text. See `{prefix}help close` for examples.
+        Bloquez un utilisateur.
         """
 
         reason = ""
@@ -918,7 +911,7 @@ class Modmail(commands.Cog):
             elif after is None:
                 raise commands.MissingRequiredArgument(param(name="user"))
             else:
-                raise commands.BadArgument(f'User "{after.arg}" not found')
+                raise commands.BadArgument(f'Utilateur "{after.arg}" na pas été trouvé')
 
         mention = getattr(user, "mention", f"`{user.id}`")
 
@@ -1041,10 +1034,7 @@ class Modmail(commands.Cog):
     @checks.thread_only()
     async def delete(self, ctx, message_id: Optional[int] = None):
         """
-        Delete a message that was sent using the reply command.
-
-        Deletes the previous message, unless a message ID is provided,
-        which in that case, deletes the message with that message ID.
+Supprime le message précèdant sauf si vous avez précisez un ID particulier
         """
         thread = ctx.thread
 
@@ -1053,7 +1043,7 @@ class Modmail(commands.Cog):
                 message_id = int(message_id)
             except ValueError:
                 raise commands.BadArgument(
-                    "An integer message ID needs to be specified."
+                    "Vous devez renseigner un ID"
                 )
 
         linked_message_id = await self.find_linked_message(ctx, message_id)
