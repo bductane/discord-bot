@@ -153,7 +153,7 @@ class Thread:
         # Once thread is ready, tell the recipient.
         thread_creation_response = self.bot.config.get(
             "thread_creation_response",
-            "Un membre du staff ESNC vous contactera dès que possible.",
+            "Un membre du staff **ESNC** vous contactera dès que possible.",
         )
 
         embed = discord.Embed(
@@ -168,7 +168,7 @@ class Thread:
 
         footer = self.bot.config.get("thread_creation_footer", footer)
         embed.set_footer(text=footer, icon_url=self.bot.guild.icon_url)
-        embed.title = self.bot.config.get("thread_creation_title", "Thread Created")
+        embed.title = self.bot.config.get("thread_creation_title", "Ticket créé")
 
         if creator is None:
             msg = await recipient.send(embed=embed)
@@ -286,9 +286,9 @@ class Thread:
 
         embed.title = user
 
-        event = "Thread Closed as Scheduled" if scheduled else "Thread Closed"
+        event = "Thread Closed as Scheduled" if scheduled else "Ticket fermé"
         # embed.set_author(name=f'Event: {event}', url=log_url)
-        embed.set_footer(text=f"{event} by {_closer}")
+        embed.set_footer(text=f"{event} par {_closer}")
         embed.timestamp = datetime.utcnow()
 
         tasks = [self.bot.config.update()]
@@ -301,7 +301,7 @@ class Thread:
         # Thread closed message
 
         embed = discord.Embed(
-            title=self.bot.config.get("thread_close_title", "Thread Closed"),
+            title=self.bot.config.get("thread_close_title", "Ticket fermé"),
             color=discord.Color.red(),
             timestamp=datetime.utcnow(),
         )
@@ -309,12 +309,12 @@ class Thread:
         if not message:
             if self.id == closer.id:
                 message = self.bot.config.get(
-                    "thread_self_close_response", "You have closed this Modmail thread."
+                    "thread_self_close_response", "Vous avez fermé ce ticket."
                 )
             else:
                 message = self.bot.config.get(
                     "thread_close_response",
-                    "{closer.mention} has closed this Modmail thread.",
+                    "{closer.mention} a fermé le ticket.",
                 )
 
         message = message.format(closer=closer, loglink=log_url, logkey=log_data["key"])
@@ -882,7 +882,7 @@ class ThreadManager:
         if member:
             joined = str((time - member.joined_at).days)
             # embed.add_field(name='Joined', value=joined + days(joined))
-            embed.description += f", Rejoins : {days(joined)}"
+            embed.description += f""
 
             if member.nick:
                 embed.add_field(name="Pseudo", value=member.nick, inline=True)
