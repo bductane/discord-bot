@@ -54,7 +54,7 @@ class HumanTime:
         now = datetime.utcnow()
         dt, status = self.calendar.parseDT(argument, sourceTime=now)
         if not status.hasDateOrTime:
-            raise BadArgument('invalid time provided, try e.g. "tomorrow" or "3 days"')
+            raise BadArgument('invalid time provided, try e.g. "demain" or "3 jours"')
 
         if not status.hasTime:
             # replace it with the current time
