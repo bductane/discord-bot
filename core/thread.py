@@ -153,7 +153,7 @@ class Thread:
         # Once thread is ready, tell the recipient.
         thread_creation_response = self.bot.config.get(
             "thread_creation_response",
-            "The staff team will get back to you as soon as possible.",
+            "Un membre du staff ESNC vous contactera dès que possible.",
         )
 
         embed = discord.Embed(
@@ -164,7 +164,7 @@ class Thread:
 
         footer = "Your message has been sent"
         if not self.bot.config.get("disable_recipient_thread_close"):
-            footer = "Click the lock to close the thread"
+            footer = "Cliquez sur le cadenas pour fermer le ticket"
 
         footer = self.bot.config.get("thread_creation_footer", footer)
         embed.set_footer(text=footer, icon_url=self.bot.guild.icon_url)
@@ -309,7 +309,7 @@ class Thread:
         if not message:
             if self.id == closer.id:
                 message = self.bot.config.get(
-                    "thread_self_close_response", "You have closed this Modmail thread."
+                    "thread_self_close_response", "Vous avez fermé ce ticket."
                 )
             else:
                 message = self.bot.config.get(
@@ -321,7 +321,7 @@ class Thread:
 
         embed.description = message
         footer = self.bot.config.get(
-            "thread_close_footer", "Replying will create a new thread"
+            "thread_close_footer", "Répondre va créer un nouveau ticket !"
         )
         embed.set_footer(text=footer, icon_url=self.bot.guild.icon_url)
 
