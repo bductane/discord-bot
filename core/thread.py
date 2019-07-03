@@ -872,7 +872,7 @@ class ThreadManager:
         # if not role_names:
         #     embed.add_field(name='Mention', value=user.mention)
         # embed.add_field(name='Registered', value=created + days(created))
-        embed.description += f" a été créé il y a {days(created)}"
+        embed.description += f""
 
         footer = "ID utilisateur : " + str(user.id)
         embed.set_footer(text=footer)
