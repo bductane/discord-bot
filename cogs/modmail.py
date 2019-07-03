@@ -60,12 +60,12 @@ class Modmail(commands.Cog):
         embed.add_field(
             name="Thanks for using the bot!",
             value="If you like what you see, consider giving the "
-            "[repo a star](https://github.com/kyb3r/modmail) :star: or if you are "
-            "feeling generous, check us out on [Patreon](https://patreon.com/kyber)!",
+            ""
+            "",
         )
 
         embed.set_footer(
-            text=f'Type "{self.bot.prefix}help" ' "for a complete list of commands."
+            text=f'Type "{self.bot.prefix}" ' "."
         )
         await log_channel.send(embed=embed)
 
@@ -119,7 +119,7 @@ class Modmail(commands.Cog):
                 description="You dont have any snippets at the moment.",
             )
             embed.set_footer(
-                text=f"Do {self.bot.prefix}help snippets for more commands."
+                text=f"Do {self.bot.prefix}"
             )
 
         embed.set_author(name="Snippets", icon_url=ctx.guild.icon_url)
