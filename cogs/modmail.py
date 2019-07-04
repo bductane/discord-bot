@@ -661,7 +661,7 @@ class Modmail(commands.Cog):
     @commands.command()
     @checks.has_permissions(PermissionLevel.SUPPORTER)
     @checks.thread_only()
-    async def anonreply(self, ctx, *, msg: str = ""):
+    async def esnc(self, ctx, *, msg: str = ""):
         """
         Reply to a thread anonymously.
 
