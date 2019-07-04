@@ -783,8 +783,8 @@ class Modmail(commands.Cog):
             await thread.wait_until_ready()
             embed = discord.Embed(
                 title="Created thread",
-                description=f"Thread started in {thread.channel.mention} "
-                f"for {user.mention}.",
+                description=f"Discussion commencé dans {thread.channel.mention} "
+                f"avec {user.mention}.",
                 color=self.bot.main_color,
             )
 
