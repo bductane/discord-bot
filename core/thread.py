@@ -264,7 +264,7 @@ class Thread:
                 content = str(log_data["messages"][0]["content"])
                 sneak_peak = content.replace("\n", "")
             else:
-                sneak_peak = "No content"
+                sneak_peak = "Pas de message."
 
             desc = f"[`{log_data['key']}`]({log_url}): "
             desc += truncate(sneak_peak, max=75 - 13)
