@@ -280,7 +280,7 @@ class Thread:
             user = f"`{self.id}`"
 
         if self.id == closer.id:
-            _closer = "the Recipient"
+            _closer = "le destinataire."
         else:
             _closer = f"{closer} ({closer.id})"
 
