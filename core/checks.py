@@ -108,5 +108,5 @@ def thread_only():
         """
         return ctx.thread is not None
 
-    predicate.fail_msg = "This is not a Modmail thread."
+    predicate.fail_msg = "TVous nêtes pas sur un ticket"
     return commands.check(predicate)
