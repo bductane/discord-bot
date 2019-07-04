@@ -788,7 +788,7 @@ class ModmailBot(commands.Bot):
         thread = await self.threads.find(recipient=member)
         if thread:
             embed = discord.Embed(
-                description="The recipient has left the server.",
+                description="TLe destinataire a quitté le serveur !",
                 color=discord.Color.red(),
             )
             await thread.channel.send(embed=embed)
@@ -797,7 +797,7 @@ class ModmailBot(commands.Bot):
         thread = await self.threads.find(recipient=member)
         if thread:
             embed = discord.Embed(
-                description="The recipient has joined the server.", color=self.mod_color
+                description="Le destinataire a rejoint le serveur.", color=self.mod_color
             )
             await thread.channel.send(embed=embed)
 
